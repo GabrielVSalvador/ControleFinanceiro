@@ -1,0 +1,41 @@
+# ============================================================
+#  .gitignore — Controle Financeiro (Java + MySQL + JDBC)
+#  Arquivos listados aqui NÃO serão enviados ao GitHub.
+# ============================================================
+
+# --- Compilados Java ---
+# Nunca suba arquivos .class (bytecode gerado pelo compilador)
+*.class
+*.jar
+*.war
+*.ear
+/bin/
+/out/
+/build/
+/target/
+
+# --- VS Code ---
+.vscode/
+*.code-workspace
+
+# --- IntelliJ / Eclipse (caso alguém use) ---
+.idea/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+
+# --- Sistema Operacional ---
+.DS_Store          # macOS
+Thumbs.db          # Windows
+desktop.ini
+
+# --- SEGURANÇA: nunca suba senhas ou configurações locais ---
+# O arquivo db.properties contém usuário/senha do banco
+src/main/resources/db.properties
+
+# --- Logs ---
+*.log
+logs/
