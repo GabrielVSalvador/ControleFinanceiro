@@ -39,3 +39,6 @@ src/main/resources/db.properties
 # --- Logs ---
 *.log
 logs/
+
+# Driver JDBC — não sobe para o GitHub (arquivo grande, binário)
+lib/
