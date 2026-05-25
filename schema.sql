@@ -1,0 +1,191 @@
+-- ============================================================
+--  CONTROLE FINANCEIRO — Schema MySQL
+--  Execute com: mysql -u root -p < schema.sql
+-- ============================================================
+
+CREATE DATABASE IF NOT EXISTS controle_financeiro
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+USE controle_financeiro;
+
+-- ------------------------------------------------------------
+-- CATEGORIAS
+-- Agrupa contas por tipo (ex: Alimentação, Transporte, Saúde)
+-- Removido o campo "tipo" pois todas são despesas no contexto
+-- do sistema. Receita fica no resumo_diario.
+-- ------------------------------------------------------------
+CREATE TABLE categorias (
+    id        INT AUTO_INCREMENT PRIMARY KEY,
+    nome      VARCHAR(100) NOT NULL UNIQUE,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ------------------------------------------------------------
+-- CONTAS (tabela pai)
+-- Campos comuns a TODAS as contas, fixas ou variáveis.
+-- O campo "tipo" determina qual tabela filha tem o registro.
+-- ------------------------------------------------------------
+CREATE TABLE contas (
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    categoria_id INT            NOT NULL,
+    nome         VARCHAR(150)   NOT NULL,
+    valor        DECIMAL(10, 2) NOT NULL,
+    vencimento   DATE           NOT NULL,
+    pago         BOOLEAN        DEFAULT FALSE,
+    observacao   TEXT,
+    criado_em    DATETIME       DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_conta_categoria
+        FOREIGN KEY (categoria_id) REFERENCES categorias(id)
+        ON DELETE RESTRICT
+);
+
+CREATE INDEX idx_contas_vencimento  ON contas(vencimento);
+CREATE INDEX idx_contas_categoria   ON contas(categoria_id);
+CREATE INDEX idx_contas_pago        ON contas(pago);
+
+-- ------------------------------------------------------------
+-- CONTAS_FIXAS (tabela filha de contas)
+-- Herda tudo de contas. Não tem campos extras por enquanto,
+-- mas existe como entidade separada para futuras extensões
+-- (ex: dia_debito_automatico, banco, etc).
+-- conta_id é PK e FK ao mesmo tempo — garante 1:1 com contas.
+-- ------------------------------------------------------------
+CREATE TABLE contas_fixas (
+    conta_id INT PRIMARY KEY,
+
+    CONSTRAINT fk_contafixa_conta
+        FOREIGN KEY (conta_id) REFERENCES contas(id)
+        ON DELETE CASCADE
+);
+
+-- ------------------------------------------------------------
+-- CONTAS_VARIAVEIS (tabela filha de contas)
+-- Campos exclusivos de contas parceladas/variáveis.
+-- num_parcelas = total de parcelas (ex: 12)
+-- parcela_atual = parcela em que está (ex: 3)
+-- ------------------------------------------------------------
+CREATE TABLE contas_variaveis (
+    conta_id      INT PRIMARY KEY,
+    num_parcelas  INT NOT NULL DEFAULT 1 COMMENT 'Total de parcelas. 1 = conta única',
+    parcela_atual INT NOT NULL DEFAULT 1,
+
+    CONSTRAINT fk_contavar_conta
+        FOREIGN KEY (conta_id) REFERENCES contas(id)
+        ON DELETE CASCADE
+);
+
+-- ------------------------------------------------------------
+-- DESPESAS (tabela pai)
+-- Campos comuns a TODAS as despesas do dia,
+-- sejam elas variáveis avulsas ou despesas da moto.
+-- ------------------------------------------------------------
+CREATE TABLE despesas (
+    id        INT AUTO_INCREMENT PRIMARY KEY,
+    data      DATE           NOT NULL,
+    nome      VARCHAR(150)   NOT NULL,
+    valor     DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_despesas_data ON despesas(data);
+
+-- ------------------------------------------------------------
+-- DESPESAS_VARIAVEIS (tabela filha de despesas)
+-- Gastos avulsos do dia: ex. almoço, material, etc.
+-- Apenas herda despesas — o nome e valor já estão lá.
+-- ------------------------------------------------------------
+CREATE TABLE despesas_variaveis (
+    despesa_id INT PRIMARY KEY,
+
+    CONSTRAINT fk_despvar_despesa
+        FOREIGN KEY (despesa_id) REFERENCES despesas(id)
+        ON DELETE CASCADE
+);
+
+-- ------------------------------------------------------------
+-- DESPESAS_MOTO (tabela filha de despesas)
+-- Despesa fixa calculada automaticamente com base nos km rodados.
+-- Fórmulas:
+--   gasto_gasolina   = (preco_gasolina / 30) * km_no_dia
+--   gasto_manutencao = gasto_gasolina / 2
+--   valor (em despesas) = gasto_gasolina + gasto_manutencao
+-- km_no_dia e preco_gasolina ficam aqui para rastreabilidade.
+-- ------------------------------------------------------------
+CREATE TABLE despesas_moto (
+    despesa_id       INT PRIMARY KEY,
+    km_no_dia        DOUBLE         NOT NULL DEFAULT 0,
+    preco_gasolina   DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    gasto_gasolina   DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    gasto_manutencao DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+
+    CONSTRAINT fk_despmoto_despesa
+        FOREIGN KEY (despesa_id) REFERENCES despesas(id)
+        ON DELETE CASCADE
+);
+
+-- ------------------------------------------------------------
+-- RESUMO DIÁRIO
+-- Calculado e salvo pelo sistema ao fechar o dia.
+-- lucro_bruto    = informado pelo usuário
+-- total_despesas = soma de todas as despesas do dia
+-- lucro_liquido  = lucro_bruto - total_despesas
+-- saldo_acumulado= soma de todos os lucros_liquidos até hoje
+-- ------------------------------------------------------------
+CREATE TABLE resumo_diario (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    data            DATE           NOT NULL UNIQUE,
+    lucro_bruto     DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    -- total_despesas NÃO é armazenado aqui pois é dado derivado:
+    --   SELECT SUM(valor) FROM despesas WHERE data = ?
+    -- Guardar seria redundância (viola 3FN).
+    lucro_liquido   DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    saldo_acumulado DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    criado_em       DATETIME DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em   DATETIME DEFAULT CURRENT_TIMESTAMP
+                             ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_resumo_data ON resumo_diario(data);
+
+-- ------------------------------------------------------------
+-- ALERTAS DE VENCIMENTO
+-- Registra quais alertas já foram exibidos para não repetir.
+-- ------------------------------------------------------------
+CREATE TABLE alertas_vencimento (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    conta_id    INT  NOT NULL,
+    data_alerta DATE NOT NULL,
+    exibido     BOOLEAN  DEFAULT FALSE,
+    criado_em   DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_alerta_conta
+        FOREIGN KEY (conta_id) REFERENCES contas(id)
+        ON DELETE CASCADE,
+
+    UNIQUE KEY uk_alerta (conta_id, data_alerta)
+);
+
+-- ============================================================
+-- DADOS INICIAIS
+-- ============================================================
+
+INSERT INTO categorias (nome) VALUES
+    ('Alimentação'),
+    ('Transporte'),
+    ('Saúde'),
+    ('Moradia'),
+    ('Educação'),
+    ('Lazer'),
+    ('Serviços'),
+    ('Manutenção'),
+    ('Outros');
+
+-- Configuração inicial da despesa da moto (km zerado — usuário preenche)
+-- Para registrar uma despesa_moto, insere-se primeiro em despesas,
+-- depois em despesas_moto usando o id gerado.
+-- Exemplo de uso (feito pelo Java, não aqui):
+--   INSERT INTO despesas (data, nome, valor) VALUES (CURDATE(), 'Moto', 0.00);
+--   INSERT INTO despesas_moto (despesa_id, km_no_dia, preco_gasolina, ...)
+--          VALUES (LAST_INSERT_ID(), 0, 0.00, 0.00, 0.00);
