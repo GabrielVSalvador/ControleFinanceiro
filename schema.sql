@@ -108,17 +108,19 @@ CREATE TABLE despesas_variaveis (
 -- DESPESAS_MOTO (tabela filha de despesas)
 -- Despesa fixa calculada automaticamente com base nos km rodados.
 -- Fórmulas:
---   gasto_gasolina   = (preco_gasolina / 30) * km_no_dia
---   gasto_manutencao = gasto_gasolina / 2
---   valor (em despesas) = gasto_gasolina + gasto_manutencao
+-- km_rodados     = km_final_do_dia - km_inicio_do_dia
+-- gasto_gasolina = (preco_gasolina / 30) * km_rodados
+-- gasto_manutencao = gasto_gasolina / 2
+-- valor (em despesas) = gasto_gasolina + gasto_manutencao
 -- km_no_dia e preco_gasolina ficam aqui para rastreabilidade.
 -- ------------------------------------------------------------
 CREATE TABLE despesas_moto (
-    despesa_id       INT PRIMARY KEY,
-    km_no_dia        DOUBLE         NOT NULL DEFAULT 0,
-    preco_gasolina   DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
-    gasto_gasolina   DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
-    gasto_manutencao DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    despesa_id       INT            PRIMARY KEY,
+    km_inicio_do_dia DOUBLE         NOT NULL DEFAULT 0,
+    km_final_do_dia  DOUBLE         NOT NULL DEFAULT 0,
+    preco_gasolina   DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
+    gasto_gasolina   DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
+    gasto_manutencao DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
 
     CONSTRAINT fk_despmoto_despesa
         FOREIGN KEY (despesa_id) REFERENCES despesas(id)
