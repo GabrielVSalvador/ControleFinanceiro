@@ -136,38 +136,52 @@ CREATE TABLE despesas_moto (
 -- saldo_acumulado= soma de todos os lucros_liquidos até hoje
 -- ------------------------------------------------------------
 CREATE TABLE resumo_diario (
-    id              INT AUTO_INCREMENT PRIMARY KEY,
+    id              INT            AUTO_INCREMENT PRIMARY KEY,
     data            DATE           NOT NULL UNIQUE,
-    lucro_bruto     DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
-    -- total_despesas NÃO é armazenado aqui pois é dado derivado:
-    --   SELECT SUM(valor) FROM despesas WHERE data = ?
-    -- Guardar seria redundância (viola 3FN).
-    lucro_liquido   DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
-    saldo_acumulado DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
-    criado_em       DATETIME DEFAULT CURRENT_TIMESTAMP,
-    atualizado_em   DATETIME DEFAULT CURRENT_TIMESTAMP
-                             ON UPDATE CURRENT_TIMESTAMP
+    ganho_dinheiro  DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
+    ganho_pix       DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
+    criado_em       DATETIME       DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em   DATETIME       DEFAULT CURRENT_TIMESTAMP
+                                   ON UPDATE CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_resumo_data ON resumo_diario(data);
 
--- ------------------------------------------------------------
--- ALERTAS DE VENCIMENTO
--- Registra quais alertas já foram exibidos para não repetir.
--- ------------------------------------------------------------
-CREATE TABLE alertas_vencimento (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
-    conta_id    INT  NOT NULL,
-    data_alerta DATE NOT NULL,
-    exibido     BOOLEAN  DEFAULT FALSE,
-    criado_em   DATETIME DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_alerta_conta
-        FOREIGN KEY (conta_id) REFERENCES contas(id)
-        ON DELETE CASCADE,
-
-    UNIQUE KEY uk_alerta (conta_id, data_alerta)
+-- Saldo atual da carteira — sempre tem só UM registro.
+-- Atualizado a cada ganho registrado ou pagamento efetuado.
+-- saldo_dinheiro = soma(ganho_dinheiro) - soma(pagamentos em dinheiro)
+-- saldo_pix      = soma(ganho_pix)      - soma(pagamentos em pix)
+CREATE TABLE saldo (
+    id              INT            AUTO_INCREMENT PRIMARY KEY,
+    saldo_dinheiro  DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
+    saldo_pix       DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
+    atualizado_em   DATETIME       DEFAULT CURRENT_TIMESTAMP
+                                   ON UPDATE CURRENT_TIMESTAMP
 );
+
+-- Insere o registro único de saldo zerado
+INSERT INTO saldo (saldo_dinheiro, saldo_pix) VALUES (0.00, 0.00);
+
+-- Registra o pagamento de uma conta.
+-- forma: DINHEIRO desconta saldo_dinheiro, PIX desconta saldo_pix.
+-- Ao inserir aqui, o Java também atualiza a tabela saldo
+-- e marca contas.pago = TRUE.
+CREATE TABLE pagamentos_conta (
+    id              INT            AUTO_INCREMENT PRIMARY KEY,
+    conta_id        INT            NOT NULL,
+    valor           DECIMAL(10,2)  NOT NULL,
+    forma           ENUM('DINHEIRO', 'PIX') NOT NULL,
+    data_pagamento  DATE           NOT NULL DEFAULT (CURDATE()),
+    observacao      TEXT,
+    criado_em       DATETIME       DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_pagamento_conta
+        FOREIGN KEY (conta_id) REFERENCES contas(id)
+        ON DELETE RESTRICT
+);
+
+CREATE INDEX idx_pagamentos_data ON pagamentos_conta(data_pagamento);
+CREATE INDEX idx_pagamentos_forma ON pagamentos_conta(forma);
 
 -- ============================================================
 -- DADOS INICIAIS
