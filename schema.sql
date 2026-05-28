@@ -183,6 +183,51 @@ CREATE TABLE pagamentos_conta (
 CREATE INDEX idx_pagamentos_data ON pagamentos_conta(data_pagamento);
 CREATE INDEX idx_pagamentos_forma ON pagamentos_conta(forma);
 
+-- ------------------------------------------------------------
+-- SALARIO
+-- Configuração do salário do usuário.
+-- ativo = FALSE significa que o usuário não tem salário
+-- cadastrado — o sistema ignora completamente.
+-- dia_pagamento = dia do mês que cai o pagamento (1 a 31).
+-- ------------------------------------------------------------
+CREATE TABLE salario (
+    id             INT            AUTO_INCREMENT PRIMARY KEY,
+    valor          DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
+    dia_pagamento  INT            NOT NULL DEFAULT 1,
+    ativo          BOOLEAN        DEFAULT FALSE,
+    criado_em      DATETIME       DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em  DATETIME       DEFAULT CURRENT_TIMESTAMP
+                                  ON UPDATE CURRENT_TIMESTAMP,
+
+    -- Garante que dia_pagamento esteja entre 1 e 31
+    CONSTRAINT chk_dia_pagamento CHECK (dia_pagamento BETWEEN 1 AND 31)
+);
+
+-- Insere o registro inicial inativo — usuário configura depois
+INSERT INTO salario (valor, dia_pagamento, ativo)
+VALUES (0.00, 1, FALSE);
+
+-- ------------------------------------------------------------
+-- RECEBIMENTOS_SALARIO
+-- Histórico de cada salário confirmado pelo usuário.
+-- Só é criado quando o usuário CONFIRMA o recebimento.
+-- forma: define qual saldo será atualizado.
+-- ------------------------------------------------------------
+CREATE TABLE recebimentos_salario (
+    id          INT            AUTO_INCREMENT PRIMARY KEY,
+    salario_id  INT            NOT NULL,
+    valor       DECIMAL(10,2)  NOT NULL,
+    forma       ENUM('DINHEIRO', 'PIX') NOT NULL,
+    data        DATE           NOT NULL,
+    criado_em   DATETIME       DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_recebimento_salario
+        FOREIGN KEY (salario_id) REFERENCES salario(id)
+        ON DELETE RESTRICT
+);
+
+CREATE INDEX idx_recebimentos_data ON recebimentos_salario(data);
+
 -- ============================================================
 -- DADOS INICIAIS
 -- ============================================================
