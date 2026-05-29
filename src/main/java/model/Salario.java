@@ -5,12 +5,12 @@ import java.math.BigDecimal;
 public class Salario {
     private int id;
     private BigDecimal valor;
-    private int dia_pagamento;
+    private int diaPagamento;
     private boolean ativo;
 
-    public Salario(BigDecimal valor, int dia_pagamento, boolean ativo) {
+    public Salario(BigDecimal valor, int diaPagamento, boolean ativo) {
         this.valor = valor;
-        this.dia_pagamento = dia_pagamento;
+        this.diaPagamento = diaPagamento;
         this.ativo = ativo;
     }
 
@@ -31,12 +31,12 @@ public class Salario {
         this.valor = valor;
     }
 
-    public int getDia_pagamento() {
-        return dia_pagamento;
+    public int getDiaPagamento() {
+        return diaPagamento;
     }
 
-    public void setDia_pagamento(int dia_pagamento) {
-        this.dia_pagamento = dia_pagamento;
+    public void setDiaPagamento(int diaPagamento) {
+        this.diaPagamento = diaPagamento;
     }
 
     public boolean isAtivo() {
@@ -45,5 +45,10 @@ public class Salario {
 
     public void setAtivo(boolean ativo) {
         this.ativo = ativo;
+    }
+
+    @Override
+    public String toString() {
+        return "Salario{id=" + id + ", valor=" + valor + ", diaPagamento=" + diaPagamento + ", ativo=" + ativo + "}";
     }
 }
