@@ -193,6 +193,24 @@ CREATE TABLE recebimentos_salario (
 
 CREATE INDEX idx_recebimentos_data ON recebimentos_salario(data);
 
+-- ------------------------------------------------------------
+-- USUARIO
+-- Preparada para múltiplos usuários no futuro.
+-- Por enquanto o sistema usa apenas o usuário de id = 1.
+-- senha armazena hash BCrypt — nunca texto puro.
+-- ------------------------------------------------------------
+CREATE TABLE usuario (
+    id        INT          AUTO_INCREMENT PRIMARY KEY,
+    usuario   VARCHAR(50)  NOT NULL UNIQUE,
+    senha     VARCHAR(255) NOT NULL,
+    criado_em DATETIME     DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Usuário padrão inicial — senha deve ser alterada no primeiro acesso
+-- O hash abaixo corresponde à senha "admin123"
+INSERT INTO usuario (usuario, senha)
+VALUES ('admin', '$2a$10$7QJ9Z1dK2LmN8pX3vY6wOeRtHuIsVbCxMoGkFjDlEnAqWsSyTzPu');
+
 -- ============================================================
 -- DADOS INICIAIS
 -- ============================================================
