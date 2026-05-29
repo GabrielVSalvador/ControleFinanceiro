@@ -82,50 +82,15 @@ CREATE TABLE contas_variaveis (
 -- sejam elas variáveis avulsas ou despesas da moto.
 -- ------------------------------------------------------------
 CREATE TABLE despesas (
-    id        INT AUTO_INCREMENT PRIMARY KEY,
-    data      DATE           NOT NULL,
+    id        INT            AUTO_INCREMENT PRIMARY KEY,
     nome      VARCHAR(150)   NOT NULL,
-    valor     DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
-    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+    valor     DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
+    -- data preenchida automaticamente no momento do cadastro
+    data      DATE           NOT NULL DEFAULT (CURDATE()),
+    criado_em DATETIME       DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_despesas_data ON despesas(data);
-
--- ------------------------------------------------------------
--- DESPESAS_VARIAVEIS (tabela filha de despesas)
--- Gastos avulsos do dia: ex. almoço, material, etc.
--- Apenas herda despesas — o nome e valor já estão lá.
--- ------------------------------------------------------------
-CREATE TABLE despesas_variaveis (
-    despesa_id INT PRIMARY KEY,
-
-    CONSTRAINT fk_despvar_despesa
-        FOREIGN KEY (despesa_id) REFERENCES despesas(id)
-        ON DELETE CASCADE
-);
-
--- ------------------------------------------------------------
--- DESPESAS_MOTO (tabela filha de despesas)
--- Despesa fixa calculada automaticamente com base nos km rodados.
--- Fórmulas:
--- km_rodados     = km_final_do_dia - km_inicio_do_dia
--- gasto_gasolina = (preco_gasolina / 30) * km_rodados
--- gasto_manutencao = gasto_gasolina / 2
--- valor (em despesas) = gasto_gasolina + gasto_manutencao
--- km_no_dia e preco_gasolina ficam aqui para rastreabilidade.
--- ------------------------------------------------------------
-CREATE TABLE despesas_moto (
-    despesa_id       INT            PRIMARY KEY,
-    km_inicio_do_dia DOUBLE         NOT NULL DEFAULT 0,
-    km_final_do_dia  DOUBLE         NOT NULL DEFAULT 0,
-    preco_gasolina   DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
-    gasto_gasolina   DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
-    gasto_manutencao DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
-
-    CONSTRAINT fk_despmoto_despesa
-        FOREIGN KEY (despesa_id) REFERENCES despesas(id)
-        ON DELETE CASCADE
-);
 
 -- ------------------------------------------------------------
 -- RESUMO DIÁRIO
